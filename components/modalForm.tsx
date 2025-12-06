@@ -1,0 +1,752 @@
+import React, { useState, useEffect } from 'react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import BookingAlert from './bookingsAlert';
+import sgMail from '@sendgrid/mail';
+
+interface Question {
+  label: string;
+  name: string;
+  type: 'text' | 'checkbox' | 'number' | 'date' | 'location' | 'email' | 'radio' | 'select';
+  required?: boolean;
+  options?: string[];
+}
+
+const ModalForm: React.FC = () => {
+  const gridApi = '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';
+  sgMail.setApiKey(gridApi);
+  const [isOpen, setIsOpen] = useState(false);
+  const [formData, setFormData] = useState<{ [key: string]: string | boolean | Date | undefined }>({});
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [originZipCode, setOriginZipCode] = useState<string>('');
+  const [destinationZipCode, setDestinationZipCode] = useState<string>('');
+  const [userEmail, setUserEmail] = useState<string>('');
+  const [userPhone, setUserPhone] = useState<number | undefined>(undefined);
+  const [make, setMake] = useState<string>('');
+  const [model, setModel] = useState<string>('');
+  const [openair, setOpen] = useState<string>('');
+  const [functional, setFunctional] = useState<string>('');
+  const [year, setYear] = useState<number | undefined>(undefined);
+
+  // Define a data structure for car makes and models
+  const carMakesAndModels: { [key: string]: string[] } = {
+    Acura: ['ILX', 'MDX', 'NSX', 'RDX', 'RLX', 'TLX'],
+    AlfaRomeo: ['4C', 'Giulia', 'Stelvio'],
+    AstonMartin: ['Aston Martin DB11', 'Aston Martin DB7', 'Aston Martin DB9', 'Aston Martin DBS', 'Aston Martin Lagonda', 'Aston Martin Rapide', 'Aston Martin V12 Vantage', 'Aston Martin V8 Vantage', 'Aston Martin Vantage', 'Aston Martin Virage'],
+    Audi: ['A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'RS3', 'RS4', 'RS5', 'RS6', 'RS7', 'RS Q3', 'TT', 'TTS', 'TT RS', 'Q3', 'Q4', 'Q5', 'SQ5', 'Q7', 'SQ7', 'Q8', 'SQ8', 'e-tron', 'R8'],
+    Bentley: ['Continental GT', 'Flying Spur', 'Bentayga', 'Mulsanne', 'Continental Supersports', 'Bentley Azure', 'Bentley Brooklands', 'Bentley Arnage', 'Bentley Turbo R', 'Bentley Eight', 'Bentley Continental R', 'Bentley Continental T'],
+    BMW: ['1 Series', '2 Series', '3 Series', '4 Series', '5 Series', '6 Series', '7 Series', '8 Series', 'X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'Z3', 'Z4', 'M2', 'M3', 'M4', 'M5', 'M6', 'i3', 'i4', 'i8', 'X3 M', 'X4 M', 'X5 M', 'X6 M'],
+    Buick: ['Enclave', 'Encore', 'Encore GX', 'Envision', 'LaCrosse', 'Regal', 'Regal Sportback', 'Regal TourX'],
+    Cadillac: ['CT4', 'CT4-V', 'CT5', 'CT5-V', 'CT6', 'CT6-V', 'Escalade', 'Escalade ESV', 'XT4', 'XT5', 'XT6', 'XTS'],
+    Chevrolet: ['Blazer', 'Bolt EV', 'Camaro', 'Colorado', 'Corvette', 'Equinox', 'Express 2500', 'Impala', 'Malibu', 'Silverado 1500', 'Silverado 2500HD', 'Silverado 3500HD', 'Spark', 'Suburban', 'Tahoe', 'Trailblazer', 'Traverse', 'Trax'],
+    Chrysler: ['Chrysler 200', 'Chrysler 300', 'Chrysler Aspen', 'Chrysler Cirrus', 'Chrysler Concorde', 'Chrysler Cordoba', 'Chrysler Crossfire', 'Chrysler E Class', 'Chrysler Fifth Avenue', 'Chrysler Imperial', 'Chrysler Laser', 'Chrysler LeBaron', 'Chrysler LHS', 'Chrysler New Yorker', 'Chrysler Newport', 'Chrysler Pacifica', 'Chrysler Prowler', 'Chrysler PT Cruiser', 'Chrysler Royal', 'Chrysler Saratoga', 'Chrysler Sebring', 'Chrysler TC by Maserati', 'Chrysler Town & Country', 'Chrysler Voyager'],
+    Dodge: ['Dodge Avenger', 'Dodge Caliber', 'Dodge Caravan', 'Dodge Challenger', 'Dodge Charger', 'Dodge Colt', 'Dodge D Series', 'Dodge Dakota', 'Dodge Dart', 'Dodge Daytona', 'Dodge Diplomat', 'Dodge Durango', 'Dodge Dynasty', 'Dodge Intrepid', 'Dodge Journey', 'Dodge Magnum', 'Dodge Mirada', 'Dodge Monaco', 'Dodge Neon', 'Dodge Nitro', 'Dodge Omni', 'Dodge Polara', 'Dodge Power Wagon', 'Dodge Raider', 'Dodge Ram', 'Dodge Ramcharger', 'Dodge Shadow', 'Dodge Spirit', 'Dodge Sprinter', 'Dodge SRT Viper', 'Dodge St. Regis', 'Dodge Stealth', 'Dodge Stratus', 'Dodge Super Bee', 'Dodge Viper', 'Dodge Wayfarer'],
+    Daihatsu: ['Daihatsu Charade', 'Daihatsu Copen', 'Daihatsu Cuore', 'Daihatsu Move', 'Daihatsu Rocky', 'Daihatsu Sirion', 'Daihatsu Terios', 'Daihatsu Hijet', 'Daihatsu Materia', 'Daihatsu Trevis', 'Daihatsu YRV', 'Daihatsu Applause', 'Daihatsu Ayla', 'Daihatsu Boon', 'Daihatsu Cast', 'Daihatsu Delta', 'Daihatsu Esse', 'Daihatsu Fellow Max', 'Daihatsu Gran Max', 'Daihatsu Leeza', 'Daihatsu Mira', 'Daihatsu Tanto', 'Daihatsu Wake'],
+    Ferrari: ['125 S', '159 S', '166 Inter', '166 S', '166 MM', '166 Inter Sport', '166 Sport', '195 S', '195 Inter', '212 Export', '212 Inter', '212 MM', '340 America', '342 America', '375 MM', '375 America', '250 Europa', '250 S', '250 MM', '250 Monza', '250 Testa Rossa', '250 GT Berlinetta', '250 GT Lusso', '250 GT SWB', '250 GTO', '250 TR', '275 GTB', '275 GTS', '330 GT', '330 GTC', '330 GTS', '365 GT 2+2', '365 GTC', '365 GTS', '365 California', 'Dino 206 GT', 'Dino 246 GT', 'Dino 246 GTS', 'Dino 308 GT4', '308 GTB', '308 GTS', '208 GT4', '400', '400i', '412', '365 GT4 2+2', '400 GT', '365 GT4 BB', '512 BB', '512 BBi', '512 TR', '512 M', '550 Maranello', '456 GT', '456M GT', '612 Scaglietti', '575M Maranello', '599 GTB Fiorano', '599 GTO', 'FF', 'F12 Berlinetta', '488 GTB', '488 Pista', '812 Superfast', 'California', 'California T', 'Portofino', 'Roma', 'SF90 Stradale', 'LaFerrari', 'Monza SP1', 'Monza SP2'],
+    FIAT: ['FIAT 124 Spider', 'FIAT 500', 'FIAT 500L', 'FIAT 500X', 'FIAT 500e', 'FIAT 500c', 'FIAT 500 Abarth', 'FIAT 500c Abarth', 'FIAT 500e Abarth', 'FIAT 500X Abarth'],
+    Fisker: ['Karma Revero', 'Fisker Atlantic'],
+    Ford: ['Aspire', 'Bronco', 'C-Max', 'Contour', 'Crown Victoria', 'E-150', 'E-250', 'E-350', 'EcoSport', 'Edge', 'Escape', 'Escort', 'Excursion', 'Expedition', 'Explorer', 'F-150', 'F-250', 'F-350', 'Festiva', 'Fiesta', 'Five Hundred', 'Flex', 'Focus', 'Freestar', 'Freestyle', 'Fusion', 'GT', 'Mustang', 'Probe', 'Ranger', 'Taurus', 'Tempo', 'Thunderbird', 'Transit Connect', 'Windstar'],
+    Genesis: ['G70', 'G80', 'G90', 'GV70', 'GV80', 'GV90', 'Essentia', 'Mint'],
+    GMC: ['Acadia', 'Canyon', 'Savana', 'Sierra 1500', 'Sierra 2500HD', 'Sierra 3500HD', 'Terrain', 'Yukon', 'Yukon XL'],
+    Honda: ['Accord', 'Civic', 'Clarity', 'CR-V', 'CR-Z', 'Fit', 'HR-V', 'Insight', 'Odyssey', 'Passport', 'Pilot', 'Ridgeline'],
+    Hyundai: ['Accent', 'Azera', 'Elantra', 'Elantra GT', 'Entourage', 'Equus', 'Genesis', 'Genesis Coupe', 'Ioniq', 'Kona', 'Nexo', 'Palisade', 'Santa Fe', 'Santa Fe Sport', 'Santa Fe XL', 'Sonata', 'Tiburon', 'Tucson', 'Veloster', 'Venue', 'Veracruz', 'XG300', 'XG350'],
+    INFINITTI: ['EX35', 'EX37', 'FX35', 'FX37', 'FX45', 'FX50', 'G20', 'G25', 'G35', 'G37', 'I30', 'I35', 'J30', 'JX35', 'M30', 'M35', 'M35h', 'M37', 'M45', 'M56', 'Q40', 'Q45', 'Q50', 'Q60', 'Q70', 'QX30', 'QX4', 'QX50', 'QX56', 'QX60', 'QX70', 'QX80'],
+    Jaguar: ['E-PACE', 'F-PACE', 'F-TYPE', 'I-PACE', 'S-TYPE', 'X-TYPE', 'XE', 'XF', 'XJ', 'XJ8', 'XJR', 'XJS', 'XK', 'XK8', 'XKR'],
+    Jeep: ['Cherokee', 'Comanche', 'Commander', 'Compass', 'Gladiator', 'Grand Cherokee', 'Grand Wagoneer', 'Liberty', 'Patriot', 'Renegade', 'Wagoneer', 'Wrangler'],
+    Karma: ['Revero', 'GS-6'],
+    Kia: ['Soul', 'Forte', 'Optima', 'Cadenza', 'Stinger', 'K900', 'Rio', 'Niro', 'Sportage', 'Seltos', 'Telluride', 'Sorento', 'Carnival', 'Sephia', 'Amanti', 'Borrego', 'Forte Koup', 'Rondo', 'K9', 'Quoris', 'Mohave', 'Picanto', 'Venga', 'Provo', 'GT4 Stinger', 'Soul EV', 'Niro EV', 'Seltos EV', 'EV6', 'EV9'],
+    Lamborghini: ['Huracan', 'Aventador', 'Urus', 'Gallardo', 'Murcielago', 'Diablo', 'Countach', 'Miura', 'Jalpa', 'Espada', 'Islero', 'Silhouette', 'Jarama', 'LM002', 'Reventon', 'Sesto Elemento', 'Veneno', 'Centenario', 'Sián', 'Egoista', 'Terzo Millennio'],
+    LandRover: ['Defender', 'Discovery', 'Discovery Sport', 'Range Rover', 'Range Rover Sport', 'Range Rover Velar', 'Range Rover Evoque', 'Freelander', 'Series I', 'Series II', 'Series III', 'Range Rover Classic', 'Range Rover P38A', 'Range Rover L322', 'Range Rover L405', 'Range Rover Sport First Generation', 'Range Rover Sport Second Generation'],
+    Lexus: ['CT', 'ES', 'GS', 'GX', 'HS', 'IS', 'LC', 'LFA', 'LS', 'LX', 'NX', 'RC', 'RX', 'SC', 'UX'],
+    Lincoln: ['Aviator', 'Blackwood', 'Capri', 'Continental', 'Corsair', 'LS', 'Mark LT', 'MKC', 'MKS', 'MKT', 'MKX', 'MKZ', 'Navigator', 'Nautilus', 'Premiere', 'Town Car', 'Versailles', 'Zephyr'],
+    Lucid: ['Air', 'Air Dream Edition', 'Air Grand Touring'],
+    Maserati: ['Ghibli', 'Quattroporte', 'Levante', 'GranTurismo', 'GranCabrio'],
+    Mazda: ['Mazda2', 'Mazda3', 'Mazda6', 'MX-5 Miata', 'CX-3', 'CX-30', 'CX-5', 'CX-9'],
+    McLaren: ['540C', '570S', '570GT', '600LT', '620R', '650S', '675LT', '720S', '765LT', 'P1', 'Senna', 'Speedtail'],
+    MercedezBenz:['A-Class', 'B-Class', 'C-Class', 'CLA-Class', 'CLS-Class', 'E-Class', 'GLA-Class', 'GLB-Class', 'GLC-Class', 'GLE-Class', 'GLS-Class', 'S-Class', 'SLC-Class', 'SL-Class', 'AMG GT', 'G-Class', 'EQC', 'Metris', 'Sprinter'],
+    MINI: ['Cooper Hardtop 2 Door', 'Cooper Hardtop 4 Door', 'Cooper Convertible', 'Clubman', 'Countryman', 'John Cooper Works (JCW) Hardtop 2 Door', 'John Cooper Works (JCW) Hardtop 4 Door', 'John Cooper Works (JCW) Convertible', 'John Cooper Works (JCW) Clubman', 'John Cooper Works (JCW) Countryman', 'Electric Hardtop', 'MINI SE Countryman ALL4 (Plug-In Hybrid)'],
+    Mitsubishi: ['Mitsubishi Model A', 'Mitsubishi 360', 'Mitsubishi 500', 'Mitsubishi Colt', 'Mitsubishi 3000GT', 'Mitsubishi Montero', 'Mitsubishi Lancer', 'Mitsubishi Eclipse', 'Mitsubishi Galant', 'Mitsubishi Mirage', 'Mitsubishi Outlander', 'Mitsubishi Pajero', 'Mitsubishi Raider', 'Mitsubishi Diamante', 'Mitsubishi Endeavor', 'Mitsubishi Starion', 'Mitsubishi Precis', 'Mitsubishi Expo', 'Mitsubishi Mighty Max', 'Mitsubishi Van', 'Mitsubishi Tredia', 'Mitsubishi Cordia', 'Mitsubishi Sigma', 'Mitsubishi Montero Sport', 'Mitsubishi 3000GT VR-4', 'Mitsubishi Eclipse Cross'],
+    Nissan: ['Nissan Model 70', 'Datsun Roadster', 'Datsun Fairlady', 'Datsun Bluebird', 'Nissan Skyline', 'Nissan Patrol', 'Nissan Silvia', 'Nissan 240Z', 'Nissan Maxima', 'Nissan Sentra', 'Nissan Altima', 'Nissan 300ZX', 'Nissan Pathfinder', 'Nissan Quest', 'Nissan Frontier', 'Nissan Xterra', 'Nissan Murano', 'Nissan Armada', 'Nissan Titan', 'Nissan GT-R', 'Nissan Leaf', 'Nissan Juke', 'Nissan Cube', 'Nissan Rogue', 'Nissan Versa', 'Nissan NV', 'Nissan NV200', 'Nissan 370Z', 'Nissan Kicks', 'Nissan NV Cargo', 'Nissan NV Passenger'],
+    Polestar: ['Polestar 1', 'Polestar 2'],
+    Porsche: ['Porsche 356', 'Porsche 911', 'Porsche 912', 'Porsche 914', 'Porsche 924', 'Porsche 928', 'Porsche 944', 'Porsche 959', 'Porsche 968', 'Porsche Boxster', 'Porsche Cayenne', 'Porsche Carrera GT', 'Porsche Cayman', 'Porsche Macan', 'Porsche Panamera', 'Porsche Taycan'],
+    Ram: ['Ram 1500', 'Ram 2500', 'Ram 3500', 'Ram 4500', 'Ram 5500', 'Ram ProMaster', 'Ram ProMaster City'],
+    Rivian: ['Rivian R1T', 'Rivian R1S'],
+    'Rolls-Royce': ['Rolls-Royce 10 hp', 'Rolls-Royce 15 hp', 'Rolls-Royce 20 hp', 'Rolls-Royce 30 hp', 'Rolls-Royce 40/50 hp (Silver Ghost)', 'Rolls-Royce Phantom I', 'Rolls-Royce Phantom II', 'Rolls-Royce Phantom III', 'Rolls-Royce Wraith', 'Rolls-Royce Silver Wraith', 'Rolls-Royce Silver Dawn', 'Rolls-Royce Silver Cloud', 'Rolls-Royce Silver Shadow', 'Rolls-Royce Camargue', 'Rolls-Royce Corniche', 'Rolls-Royce Silver Spirit', 'Rolls-Royce Silver Spur', 'Rolls-Royce Park Ward', 'Rolls-Royce Phantom IV', 'Rolls-Royce Phantom V', 'Rolls-Royce Phantom VI', 'Rolls-Royce Silver Seraph', 'Rolls-Royce Silver Spirit II', 'Rolls-Royce Silver Spur II', 'Rolls-Royce Phantom VII', 'Rolls-Royce Ghost', 'Rolls-Royce Wraith', 'Rolls-Royce Dawn', 'Rolls-Royce Cullinan'],
+    Subaru: ['Subaru 360', 'Subaru R-2', 'Subaru Sambar', 'Subaru 1000', 'Subaru FF-1', 'Subaru Leone', 'Subaru BRAT', 'Subaru XT', 'Subaru Justy', 'Subaru Legacy', 'Subaru Impreza', 'Subaru SVX', 'Subaru Outback', 'Subaru Forester', 'Subaru Tribeca', 'Subaru Baja', 'Subaru WRX', 'Subaru Crosstrek (XV)', 'Subaru Ascent'],
+    Tesla: ['Tesla Roadster (1st Generation)', 'Tesla Model S', 'Tesla Model X', 'Tesla Model 3', 'Tesla Model Y'],
+    Toyota: ['Toyota AA', 'Toyota AB', 'Toyota AC', 'Toyota AE', 'Toyota BA', 'Toyota Publica', 'Toyota Land Cruiser', 'Toyota Crown', 'Toyota Corolla', 'Toyota Celica', 'Toyota Cressida', 'Toyota Supra', 'Toyota MR2', 'Toyota Camry', 'Toyota Prius', 'Toyota RAV4', 'Toyota 4Runner', 'Toyota Tacoma', 'Toyota Tundra', 'Toyota Echo', 'Toyota Yaris', 'Toyota Matrix', 'Toyota Venza', 'Toyota FJ Cruiser', 'Toyota Highlander', 'Toyota Sequoia', 'Toyota Sienna', 'Toyota Avalon', 'Toyota Solara', 'Toyota T100', 'Toyota Tercel', 'Toyota Paseo', 'Toyota Previa', 'Toyota Starlet', 'Toyota MR2 Spyder', 'Toyota Scion xA', 'Toyota Scion xB', 'Toyota Scion tC', 'Toyota Scion xD', 'Toyota Scion iQ', 'Toyota Scion FR-S', 'Toyota Scion IM', 'Toyota 86'],
+    VinFast: ['VinFast LUX A2.0', 'VinFast LUX SA2.0', 'VinFast LUX V8.2', 'VinFast LUX SA2.0 (SUV)', 'VinFast LUX SA2.0 (Sedan)', 'VinFast President'],
+    Volkswagen: ['Volkswagen Type 1', 'Volkswagen Karmann Ghia', 'Volkswagen Type 2', 'Volkswagen Type 3', 'Volkswagen Type 4', 'Volkswagen Golf', 'Volkswagen Polo', 'Volkswagen Passat', 'Volkswagen Jetta', 'Volkswagen Scirocco', 'Volkswagen Rabbit', 'Volkswagen Fox', 'Volkswagen Santana', 'Volkswagen Corrado', 'Volkswagen Phaeton', 'Volkswagen Touareg', 'Volkswagen Tiguan', 'Volkswagen Atlas', 'Volkswagen Arteon', 'Volkswagen ID.3', 'Volkswagen ID.4', 'Volkswagen ID. Buzz', 'Volkswagen Up!', 'Volkswagen e-Golf', 'Volkswagen e-Up!', 'Volkswagen XL1', 'Volkswagen Amarok', 'Volkswagen T-Roc', 'Volkswagen Taos', 'Volkswagen Nivus'],
+    Volvo: ['Volvo ÖV4', 'Volvo PV4', 'Volvo PV650 Series', 'Volvo PV36 Carioca', 'Volvo PV800 Series', 'Volvo PV51', 'Volvo PV60', 'Volvo PV444', 'Volvo PV544', 'Volvo Amazon', 'Volvo P1800', 'Volvo 140 Series', 'Volvo 240 Series', 'Volvo 260 Series', 'Volvo 340', 'Volvo 360', 'Volvo 440', 'Volvo 460', 'Volvo 480', 'Volvo 740', 'Volvo 760', 'Volvo 780', 'Volvo 850', 'Volvo 940', 'Volvo 960', 'Volvo S40', 'Volvo S60', 'Volvo S70', 'Volvo S80', 'Volvo S90', 'Volvo V40', 'Volvo V50', 'Volvo V60', 'Volvo V70', 'Volvo V90', 'Volvo XC40', 'Volvo XC60', 'Volvo XC70', 'Volvo XC90', 'Volvo C30', 'Volvo C70', 'Volvo S40/V40 (2nd Generation)', 'Volvo S60 (2nd Generation)', 'Volvo S80 (2nd Generation)', 'Volvo XC60 (2nd Generation)', 'Volvo XC70 (2nd Generation)', 'Volvo V60 (2nd Generation)', 'Volvo V70 (2nd Generation)', 'Volvo V90 (2nd Generation)', 'Volvo S60 (3rd Generation)', 'Volvo V60 (3rd Generation)', 'Volvo XC40 Recharge', 'Volvo XC90 (2nd Generation)', 'Volvo XC40 (2nd Generation)', 'Volvo S90 (2nd Generation)', 'Volvo C40 Recharge'],
+    Wagoneer: ['Jeep Wagoneer (SJ) - 1963-1991', 'Jeep Grand Wagoneer (SJ) - 1984-1991', 'Jeep Grand Wagoneer Concept (Concept vehicle announced in 2020)']
+
+
+   
+    // Add more makes and models here
+  };
+
+  // Create state variables for the selected make and model
+  const [selectedMake, setSelectedMake] = useState<string>('');
+  const [selectedModel, setSelectedModel] = useState<string>('');
+
+  const questions: Question[] = [
+    // ... (other questions)
+
+    
+    {
+      label: 'Your Full Name',
+      name: 'fullname',
+      type: 'text',
+      required: true,
+    },
+    {
+      label: 'Your Phone Number',
+      name: 'phone',
+      type: 'number',
+      required: true,
+    },
+    {
+      label: 'Which of the Following transport Options do you prefer? Open or Enclosed? (check one)',
+      name: 'openair',
+      type: 'radio',
+      required: false,
+    },
+    {
+      label: 'Your Email Address',
+      name: 'email',
+      type: 'email',
+      required: true,
+    },
+    {
+      label: 'is this vehicle operable? Yes or no (check one)',
+      name: 'functional',
+      type: 'radio',
+      required: false,
+    },
+    {
+      label: 'Year of Your Vehicle',
+      name: 'year',
+      type: 'select', 
+      required: true,
+      options: [
+        '1899', '1900', '1901', '1902', '1903', '1904', '1905', '1906', '1907', '1908', '1909', '1910', '1911', '1912', '1913', '1914', '1915', '1916', '1917', '1918', '1919', '1920', '1921', '1922', '1923', '1924', '1925', '1926', '1927', '1928', '1929', '1930', '1931', '1932', '1933', '1934', '1935', '1936', '1937', '1938', '1939', '1940', '1941', '1942', '1943', '1944', '1945', '1946', '1947', '1948', '1949', '1950', '1951', '1952', '1953', '1954', '1955', '1956', '1957', '1958', '1959', '1960', '1961', '1962', '1963', '1964', '1965', '1966', '1967', '1968', '1969', '1970', '1971', '1972', '1973', '1974', '1975', '1976', '1977', '1978', '1979', '1980', '1981', '1982', '1983', '1984', '1985', '1986', '1987', '1988', '1989', '1990', '1991', '1992', '1993', '1994', '1995', '1996', '1997', '1998', '1999', '2000', '2001', '2002', '2003', '2004', '2005', '2006', '2007', '2008', '2009', '2010', '2011', '2012', '2013', '2014', '2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023'
+      ],
+    },
+    {
+      label: 'Make of Your Vehicle',
+      name: 'make',
+      type: 'select',
+      required: true,
+      options: Object.keys(carMakesAndModels),
+    },
+    {
+      label: 'Model of Your Vehicle',
+      name: 'model',
+      type: 'select',
+      required: true,
+      options: selectedMake ? carMakesAndModels[selectedMake] : [],
+    },
+    {
+      label: 'Origin Name/Zipcode',
+      name: 'pickup',
+      type: 'text',
+      required: true,
+    },
+    {
+      label: 'Date you prefer for Pickup',
+      name: 'pickupdate',
+      type: 'date',
+      required: true,
+    },
+    {
+      label: 'Destination Name/Zipcode',
+      name: 'destination',
+      type: 'text',
+      required: true,
+    },
+  ];
+
+  useEffect(() => {
+    // Add any additional logic you need when the component mounts
+  }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    const inputValue = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+
+    // Update the state based on the input field name
+    switch (name) {
+      case 'pickup':
+        setOriginZipCode(inputValue as string);
+        break;
+      case 'destination':
+        setDestinationZipCode(inputValue as string);
+        break;
+      case 'year':
+        setYear(parseInt(inputValue as string, 10) || undefined);
+        break;
+      case 'email':
+        setUserEmail(inputValue as string);
+        
+        break;
+      case 'make':
+        setMake(inputValue as string);
+
+        // Set the selected make and reset the selected model
+        setSelectedMake(inputValue as string);
+        setSelectedModel('');
+        break;
+      case 'model':
+        setModel(inputValue as string);
+
+        // Update the selected model
+        setSelectedModel(inputValue as string);
+        break;
+      case 'phone':
+        setUserPhone(parseInt(inputValue as string, 10) || undefined);
+        break;
+      case 'openair':
+        setOpen(inputValue as string);
+        break;
+        case 'functional':
+          setFunctional(inputValue as string);
+          break;
+      default:
+        break;
+    }
+
+    // Update the form data
+    setFormData((prevData) => ({ ...prevData, [name]: inputValue }));
+  };
+
+  // Add an event listener to update available models when the selected make changes
+  useEffect(() => {
+    if (selectedMake) {
+      setModel('');
+    }
+  }, [selectedMake]);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setFormData((prevData) => ({ ...prevData, [questions[currentQuestionIndex].name]: undefined }));
+    setCurrentQuestionIndex((prevIndex) => prevIndex + 1);
+
+    if (currentQuestionIndex === questions.length - 1) {
+      setIsLoading(true);
+      setTimeout(async () => {
+        try {
+          // Calculate the estimated price using the user-input data
+          await calculateEstimatedPrice(originZipCode, destinationZipCode, userEmail, userPhone, make, model, year, openair, functional);
+          setIsLoading(false);
+        } catch (error) {
+          console.error('Error calculating estimated price:', error);
+          setEstimatedPrice(null);
+        }
+      }, 3000);
+    }
+  };
+
+  const calculateEstimatedPrice = async (
+    originZip: string,
+    destinationZip: string,
+    userEmail: string,
+    userPhone: number | undefined,
+    make: string,
+    model: string,
+    year: number | undefined,
+    openair: string,
+    functional: string
+  ) => {
+    try {
+      console.log(originZip, destinationZip)
+      const response = await fetch('https://x6ol2zivtfn6moc57tzris3txi0qcspu.lambda-url.us-east-2.on.aws/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin':'https://barbarav2.vercel.app'
+        },
+        body: JSON.stringify({
+          origin: originZip,
+          destination: destinationZip,
+          year: year,
+          model: model,
+          make: make,
+          email: userEmail,
+          phone: userPhone,
+          openair: openair,
+          functional: functional
+        }),
+      });
+      const quote_id = `${Math.floor(Math.random()*10000)}`
+      const years = '121'
+
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch estimated price');
+      }
+
+      const data = await response.json();
+      console.log(data);
+
+      const estimatedCost = parseFloat(data.Cost);
+      addToDB(originZip, destinationZip, userEmail, userPhone, make, model, year, openair, quote_id, data.Cost )
+
+      setEstimatedPrice(estimatedCost);
+    } catch (error) {
+      console.error('Error calculating estimated price:', error);
+      setEstimatedPrice(null);
+    }
+  };
+
+  const handleBookNow = async () => {
+    alert('Details will be emailed to you shortly at ' + userEmail);
+    // Send email using SendGrid
+    //  const msg = {
+    //   to: userEmail, // Change to the user's email
+    //   from: 'info@orocast.com', // Change to your verified sender
+    //   subject: 'Estimated Price Calculation',
+    //   text: `Your estimated price is: ${estimatedPrice}`,
+    //   html: `<strong>Your estimated price is:</strong> ${estimatedPrice}`,
+    // };
+
+    // await sgMail.send(msg);
+    window.location.reload();
+
+  };
+
+  const handleModalClose = () => {
+    setIsOpen(false);
+    setCurrentQuestionIndex(0);
+    setEstimatedPrice(null);
+  };
+
+  const renderQuestion = (question: Question) => {
+    switch (question.type) {
+      case 'text':
+       
+        return (
+          <input
+            type="text"
+            name={question.name}
+            style={{ color: 'black', fontWeight: '700' }}
+            value={formData[question.name] as string | undefined}
+            onChange={handleInputChange}
+            required={question.required}
+            className="form-control"
+          />
+        );
+      case 'radio':
+          if(question.name === 'functional')
+          {
+        return (
+          <div>
+          <label>
+            <input
+              type="radio"
+              name={question.name}
+              value="true"
+              style={{ color: 'black', fontWeight: '700' }}
+              checked={formData[question.name] === 'true'}
+              onChange={handleInputChange}
+              required={question.required}
+              className="form-control"
+            />
+            Yes&nbsp;&nbsp;&nbsp;&nbsp;
+          </label>
+          <label>
+            <input
+              type="radio"
+              name={question.name}
+              value="false"
+              style={{ color: 'black', fontWeight: '700' }}
+              checked={formData[question.name] === 'false'}
+              onChange={handleInputChange}
+              required={question.required}
+              className="form-control"
+            />
+            No
+          </label>
+        </div>);
+          }
+          else{
+            return (
+              <div>
+              <label>
+                <input
+                  type="radio"
+                  name={question.name}
+                  value="true"
+                  style={{ color: 'black', fontWeight: '700' }}
+                  checked={formData[question.name] === 'true'}
+                  onChange={handleInputChange}
+                  required={question.required}
+                  className="form-control"
+                />
+                Open&nbsp;&nbsp;&nbsp;&nbsp;
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name={question.name}
+                  value="false"
+                  style={{ color: 'black', fontWeight: '700' }}
+                  checked={formData[question.name] === 'false'}
+                  onChange={handleInputChange}
+                  required={question.required}
+                  className="form-control"
+                />
+                Closed
+              </label>
+            </div>);
+          }
+      case 'email':
+        return (
+          <input
+            type="email"
+            name={question.name}
+            style={{ color: 'black', fontWeight: '700' }}
+            value={formData[question.name] as string | undefined}
+            onChange={handleInputChange}
+            required={question.required}
+            className="form-control"
+          />
+        );
+      case 'number':
+        return (
+          <input
+            type="number"
+            name={question.name}
+            style={{ color: 'black', fontWeight: '700' }}
+            value={formData[question.name] as number | undefined}
+            onChange={handleInputChange}
+            required={question.required}
+            className="form-control"
+          />
+        );
+      case 'date':
+        return (
+          <DatePicker
+            selected={formData[question.name] as Date | undefined}
+            onChange={(date: Date) => handleInputChange({ target: { name: question.name, value: date } } as any)}
+            required={question.required}
+            className="form-control"
+          />
+        );
+      case 'select':
+        return (
+          <select
+            name={question.name}
+            style={{ color: 'black', fontWeight: '700'}}
+            value={formData[question.name] as string | undefined}
+            onChange={handleInputChange}
+            required={question.required}
+            className="form-control"
+          
+          >
+            <option value="">Select an option</option>
+            {question.options &&
+              question.options.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+          </select>
+        );
+      default:
+        return null;
+    }
+  };
+  
+  const closeModal = () => {
+    setIsOpen(false);
+  };
+
+  // Define the renderModelSelect function to render the model select input
+  const renderModelSelect = () => {
+    return (
+      <select
+        name="model"
+        style={{ color: 'black', fontWeight: '700', opacity: 0 }}
+        value={formData['model'] as string | undefined}
+        onChange={handleInputChange}
+        required={true}
+        className="form-control"
+      >
+        <option value=""></option>
+        {selectedMake &&
+          carMakesAndModels[selectedMake].map((model) => (
+            <option key={model} value={model}>
+              {model}
+            </option>
+          ))}
+      </select>
+    );
+  };
+  const addToDB = async (
+    originZip: string,
+    destinationZip: string,
+    userEmail: string,
+    userPhone: number | undefined,
+    make: string,
+    model: string,
+    year: number | undefined,
+    openair: string,
+    quote_id: string,
+    cost: number | undefined
+  ) => {
+    try {
+      const response = await fetch('https://4af3gk9g62.execute-api.us-east-2.amazonaws.com/default/create_carrier', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Origin': 'https://barbarav2.vercel.app', // Replace with your app's URL
+        },
+        body: JSON.stringify({
+          TableName: 'free_quotes',
+          Item: {
+              origin: originZip,
+              destination: destinationZip,
+              year: year,
+              model: model,
+              make: make,
+              email: userEmail,
+              phone: userPhone,
+              openair: openair,
+              quote_id: quote_id,
+              quote_price: cost
+            
+          },
+        }),
+      });
+
+      if (response.ok) {
+        console.log("Added to Db");
+        try {
+          const response = await fetch('https://4af3gk9g62.execute-api.us-east-2.amazonaws.com/default/create_carrier', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Origin': 'https://barbarav2.vercel.app', // Replace with your app's URL
+            },
+            body: JSON.stringify({
+              TableName: 'bookings',
+              Item: {
+                  origin: originZip,
+                  destination: destinationZip,
+                  year: year,
+                  model: model,
+                  make: make,
+                  email: userEmail,
+                  phone: userPhone,
+                  openair: openair,
+                  booking_id: quote_id,
+                  carrier_id: 0,
+                  amount: cost,
+                  createdDate: Date.now
+                
+              },
+            }),
+          });
+    
+          if (response.ok) {
+            console.log("Added to bookings");
+    
+          } else {
+            console.log('Sign up failed.');
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          alert('An error occurred. Please try again later.');
+        }
+
+
+      } else {
+        console.log('Sign up failed.');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('An error occurred. Please try again later.');
+    }
+  }
+  const addToBooking = async (
+    originZip: string,
+    destinationZip: string,
+    userEmail: string,
+    userPhone: number | undefined,
+    make: string,
+    model: string,
+    year: number | undefined,
+    openair: string,
+    quote_id: string,
+    cost: number | undefined
+  ) => {
+    try {
+      const response = await fetch('https://4af3gk9g62.execute-api.us-east-2.amazonaws.com/default/create_carrier', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Origin': 'https://barbarav2.vercel.app', // Replace with your app's URL
+        },
+        body: JSON.stringify({
+          TableName: 'bookings',
+          Item: {
+              origin: originZip,
+              destination: destinationZip,
+              year: year,
+              model: model,
+              make: make,
+              email: userEmail,
+              phone: userPhone,
+              openair: openair,
+              booking_id: quote_id,
+              carrier_id: 0,
+              amount: cost,
+              createdDate: Date.now
+            
+          },
+        }),
+      });
+
+      if (response.ok) {
+        console.log("Added to bookings");
+
+      } else {
+        console.log('Sign up failed.');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('An error occurred. Please try again later.');
+    }
+  }
+
+  return (
+    <div>
+       <BookingAlert />
+      <button
+        className="btn text-white bg-blue-700 hover:bg-blue-800 w-full sm:w-auto sm:ml-4"
+        onClick={() => setIsOpen(true)}
+      >
+        FREE QUOTE
+      </button>
+
+      {isOpen && (
+        <div
+          className="modal-overlay"
+          style={{
+            backgroundColor: 'black',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <div
+            className="modal-content"
+            style={{
+              backgroundColor: 'white',
+              color: 'black',
+              padding: '2rem',
+              fontWeight: '700',
+              borderRadius: '10px',
+              maxWidth: '500px',
+
+              textAlign: 'center',
+            }}
+          >
+              <button style={{float:"right", marginTop: '-30px', marginRight: '-22px'}} className="close-button" onClick={closeModal}>
+                &times;
+              </button>
+            {currentQuestionIndex < questions.length && (
+              <div>
+                <h1 style={{padding: '5px'}}>{questions[currentQuestionIndex].label}</h1>
+
+                <form onSubmit={handleSubmit}>
+                  {renderQuestion(questions[currentQuestionIndex])}
+
+                  <button
+                    className="form-button"
+                    type="submit"
+                    style={{
+                      backgroundColor: '#0079d7',
+                      color: 'white',
+                      padding: '0.5rem 1rem',
+                      marginLeft: '3px',
+                      border: 'none',
+                      borderRadius: '5px',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Next
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {currentQuestionIndex === questions.length && (
+              <div>
+                <h2>Estimated Price:</h2>
+                {isLoading ? (
+                  <p>Loading...</p>
+                ) : (
+                  <p>${estimatedPrice !== null ? estimatedPrice.toFixed(2) : 'N/A'}</p>
+                )}
+
+                <button
+                  className="form-button"
+                  onClick={handleBookNow}
+                  style={{
+                    backgroundColor: '#6B46C1',
+                    color: 'white',
+                    padding: '0.5rem 1rem',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    marginLeft: '60px',
+                  }}
+                >
+                  Book Now
+                </button>
+
+                <button
+                  className="form-button"
+                  onClick={handleModalClose}
+                  style={{
+                    backgroundColor: 'transparent',
+                    color: 'white',
+                    padding: '0.5rem 1rem',
+                    border: '1px solid white',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    marginTop: '1rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            )}
+
+            {/* Model Select */}
+            {currentQuestionIndex < questions.length && questions[currentQuestionIndex].name === 'model' && (
+              <div>
+                <h2></h2>
+                {renderModelSelect()}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+     
+    </div>
+  );
+};
+
+export default ModalForm;

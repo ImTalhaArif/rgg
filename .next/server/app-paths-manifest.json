@@ -1,0 +1,13 @@
+{
+  "/admin/page": "app/admin/page.js",
+  "/bookings/page": "app/bookings/page.js",
+  "/carriers/page": "app/carriers/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/payouts/page": "app/payouts/page.js",
+  "/profile/page": "app/profile/page.js",
+  "/api/hello/route": "app/api/hello/route.js",
+  "/(default)/page": "app/(default)/page.js",
+  "/(auth)/signin/page": "app/(auth)/signin/page.js",
+  "/(auth)/signup/page": "app/(auth)/signup/page.js",
+  "/(auth)/reset-password/page": "app/(auth)/reset-password/page.js"
+}

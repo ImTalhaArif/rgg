@@ -1,0 +1,13 @@
+{
+  "/admin/page": "/admin",
+  "/bookings/page": "/bookings",
+  "/carriers/page": "/carriers",
+  "/dashboard/page": "/dashboard",
+  "/payouts/page": "/payouts",
+  "/profile/page": "/profile",
+  "/api/hello/route": "/api/hello",
+  "/(default)/page": "/",
+  "/(auth)/signin/page": "/signin",
+  "/(auth)/signup/page": "/signup",
+  "/(auth)/reset-password/page": "/reset-password"
+}

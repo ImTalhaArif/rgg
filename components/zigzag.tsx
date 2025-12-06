@@ -1,9 +1,8 @@
 import Image from 'next/image'
 
 import FeatImage01 from '@/public/images/features-03-image-01.jpeg'
-import FeatImage02 from '@/public/images/features-03-image-02.jpg'
-import FeatImage03 from '@/public/images/features-03-image-03.jpg'
-
+import FeatImage02 from '@/public/images/features-03-image-02.png'
+import FeatImage03 from '@/public/images/features-03-image-03.jpeg'
 export default function Zigzag() {
   return (
     <section className="py-12 md:py-20 bg-white">

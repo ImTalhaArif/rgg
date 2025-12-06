@@ -1,1 +1,39 @@
-node_modules
+# Node modules
+node_modules/
+
+# Build outputs
+.next/
+out/
+dist/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# MacOS files
+.DS_Store
+
+# VSCode
+.vscode/
+
+# Optional: local lint/styled cache
+.cache/
+.parcel-cache/
+*.tgz
+
+# Test coverage
+coverage/
+
+# Misc
+*.log
+*.lock
+.idea/

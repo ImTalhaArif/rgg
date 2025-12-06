@@ -123,12 +123,22 @@ const Home: React.FC = () => {
                 &times;
               </button>
               <h2 style={{ color: 'black' }}>How can we assist you?</h2>
-              <button className="chat-button" onClick={handleChat}>
-                Chat
-              </button>
-              <button className="call-button" onClick={handleCall}>
-                Call
-              </button>
+              <button
+  className="chat-button"
+  onClick={() => {
+    window.open("https://wa.me/921234567891", "_blank");
+  }}
+>
+  WhatsApp
+</button>
+              <button
+  className="call-button"
+  onClick={() => {
+    window.location.href = "tel:+921234567891";
+  }}
+>
+  Call
+</button>
             </div>
           </div>
         )}

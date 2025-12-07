@@ -138,6 +138,14 @@ export default function Header() {
                       Sign Up
                     </Link>
                   </li>
+ <li>
+                    <Link
+                      href="#services"
+                      className="btn-sm text-white bg-purple-600 hover:bg-purple-700 ml-2"
+                    >
+                      Services
+                    </Link>
+                  </li>
                 </>
               )}
 

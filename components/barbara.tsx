@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import RGGChat from "./RGGChat"; // <-- IMPORT YOUR CUSTOM CHAT COMPONENT
+import RGGChat from "./barbaraChat"; // <-- IMPORT YOUR CUSTOM CHAT COMPONENT
 
 const Home: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
